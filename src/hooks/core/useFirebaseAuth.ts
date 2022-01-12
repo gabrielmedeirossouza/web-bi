@@ -1,42 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Firebase } from '@firebase';
 
-interface IStatus {
-  error: string | null;
+import { firebaseApp } from '@firebase';
+import {
+  createUserWithEmailAndPassword as firebaseCreateUserWithEmailAndPassword,
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  signOut as firebaseSignOut,
+  getAuth,
+  User,
+} from 'firebase/auth';
+import { useRouter } from 'next/router';
+
+export interface IResponseStatus {
+  error: {
+    code: string | null;
+    message: string | null;
+  }
 }
-
-interface IFormatAuthUser {
-  uid: string;
-  email: string | null;
-}
-
-export interface IUserCredentialWithStatus {
-  data: void | Firebase.auth.UserCredential;
-  status: IStatus;
-}
-
-const formatAuthUser = ({ uid, email }: IFormatAuthUser) => ({
-  uid,
-  email,
-});
 
 export function useFirebaseAuth() {
-  const [authUser, setAuthUser] = useState<IFormatAuthUser | null>(null);
+  const firebaseAuth = getAuth(firebaseApp);
   const [isLoading, setIsLoading] = useState(false);
 
-  const status: IStatus = {
-    error: null,
+  const router = useRouter();
+
+  const error = {
+    code: null,
+    message: null,
   };
 
-  const authStateChanged = async (authState: Firebase.User | null) => {
+  const authStateChanged = async (authState: User | null) => {
     if (!authState) {
-      setAuthUser(null);
-
-      return;
+      router.push('/signin');
     }
-
-    const formattedUser = formatAuthUser(authState);
-    setAuthUser(formattedUser);
   };
 
   const prepareToAction = () => {
@@ -44,59 +40,47 @@ export function useFirebaseAuth() {
   };
 
   const clear = () => {
-    setAuthUser(null);
     setIsLoading(false);
   };
 
-  const signInWithEmailAndPassword = async (
-    email: string,
-    password: string,
-  ): Promise<IUserCredentialWithStatus> => {
+  const signInWithEmailAndPassword = async (email: string, password: string) => {
     prepareToAction();
 
-    const resp = await Firebase.auth().signInWithEmailAndPassword(email, password)
+    await firebaseSignInWithEmailAndPassword(firebaseAuth, email, password)
       .catch((err) => {
-        status.error ??= err.code;
+        error.code ??= err.code;
+        error.message ??= err.message;
       })
       .finally(() => {
         setIsLoading(false);
       });
 
-    return {
-      data: resp,
-      status,
-    };
+    return { error };
   };
 
-  const createUserWithEmailAndPassword = async (
-    email: string,
-    password: string,
-  ): Promise<IUserCredentialWithStatus> => {
+  const createUserWithEmailAndPassword = async (email: string, password: string) => {
     prepareToAction();
 
-    const resp = await Firebase.auth().createUserWithEmailAndPassword(email, password)
+    await firebaseCreateUserWithEmailAndPassword(firebaseAuth, email, password)
       .catch((err) => {
-        status.error ??= err.code;
+        error.code ??= err.code;
+        error.message ??= err.message;
       })
       .finally(() => {
         setIsLoading(false);
       });
 
-    return {
-      data: resp,
-      status,
-    };
+    return { error };
   };
 
-  const signOut = () => Firebase.auth().signOut().then(clear);
+  const signOut = () => firebaseSignOut(firebaseAuth).then(clear);
 
   useEffect(() => {
-    const unsubscribe = Firebase.auth().onAuthStateChanged(authStateChanged);
+    const unsubscribe = firebaseOnAuthStateChanged(firebaseAuth, authStateChanged);
     return () => unsubscribe();
   }, []);
 
   return {
-    authUser,
     isLoading,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,

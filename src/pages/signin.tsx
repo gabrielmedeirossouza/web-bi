@@ -8,10 +8,9 @@ import { useAuth } from '@hooks';
 import { SignIn as schema } from '@schemas';
 import { getErrorMessage } from '@utils';
 
-import NextLink from 'next/link';
 import { AppForm } from '@components';
 import {
-  Box, Button, Flex, Text, useToast,
+  Box, Flex, Text, useToast,
 } from '@chakra-ui/react';
 
 interface IFormInputs {
@@ -29,10 +28,10 @@ const SignIn: NextPage = () => {
   });
 
   const onSubmit = async ({ email, password }: IFormInputs) => {
-    const { status } = await signInWithEmailAndPassword(email, password);
+    const { error } = await signInWithEmailAndPassword(email, password);
 
-    if (status.error) {
-      const errorMessage = getErrorMessage(status.error);
+    if (error.code) {
+      const errorMessage = getErrorMessage(error.code);
       toast({
         title: errorMessage,
         status: 'error',
